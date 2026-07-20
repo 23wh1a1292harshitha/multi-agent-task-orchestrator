@@ -4,6 +4,7 @@ from app.core.celery_app import celery_app
 from app.db.base import SessionLocal
 from app.db.models.user import User  # noqa: F401 - needed to register the User mapper for the Task.user relationship
 from app.db.models.task import Task, TaskStatus
+from app.agents.graph import workflow_graph
 
 
 @celery_app.task(name="run_task_workflow")
@@ -18,8 +19,22 @@ def run_task_workflow(task_id: str):
         task.status = TaskStatus.RUNNING
         db.commit()
 
-        # --- placeholder for now, real agent logic comes in Step 7 ---
-        task.final_result = f"Placeholder result for: {task.input_text}"
+        initial_state = {
+            "original_request": task.input_text,
+            "research_output": "",
+            "summary_output": "",
+            "email_output": "",
+        }
+
+        final_state = workflow_graph.invoke(initial_state)
+
+        task.plan = ["research", "summary", "email"]
+        task.steps_output = {
+            "research": final_state["research_output"],
+            "summary": final_state["summary_output"],
+            "email": final_state["email_output"],
+        }
+        task.final_result = final_state["email_output"]
         task.status = TaskStatus.COMPLETED
         db.commit()
 

@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     celery_result_backend: str
 
     # Gemini
-    gemini_api_key: str
+    groq_api_key: str
 
 
 settings = Settings()
