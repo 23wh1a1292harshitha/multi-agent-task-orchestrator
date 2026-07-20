@@ -31,5 +31,43 @@ services:
       timeout: 5s
       retries: 5
 
+  api:
+    build: .
+    container_name: orchestrator_api
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://orchestrator_user:orchestrator_pass@postgres:5432/orchestrator_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+  worker:
+    build: .
+    container_name: orchestrator_worker
+    restart: always
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://orchestrator_user:orchestrator_pass@postgres:5432/orchestrator_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.core.celery_app worker --loglevel=info
+
 volumes:
   postgres_data:
