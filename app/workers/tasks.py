@@ -5,6 +5,8 @@ from app.db.base import SessionLocal
 from app.db.models.user import User  # noqa: F401 - needed to register the User mapper for the Task.user relationship
 from app.db.models.task import Task, TaskStatus
 from app.agents.graph import workflow_graph
+from app.agents.email_sender import send_email
+from app.core.rate_limit import limiter
 
 
 @celery_app.task(name="run_task_workflow")
@@ -35,6 +37,19 @@ def run_task_workflow(task_id: str):
             "email": final_state["email_output"],
         }
         task.final_result = final_state["email_output"]
+
+        email_sent = False
+        if task.recipient_email:
+            lines = final_state["email_output"].split("\n", 1)
+            if lines[0].lower().startswith("subject:"):
+                subject = lines[0].replace("Subject:", "").strip()
+                body = lines[1].strip() if len(lines) > 1 else ""
+            else:
+                subject = "AgentFlow Result"
+                body = final_state["email_output"]
+            email_sent = send_email(task.recipient_email, subject, body)
+
+        task.steps_output["email_sent"] = email_sent
         task.status = TaskStatus.COMPLETED
         db.commit()
 

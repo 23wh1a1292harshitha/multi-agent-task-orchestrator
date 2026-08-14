@@ -11,6 +11,7 @@ def create_task(db: Session, user: User, task_in: TaskCreate) -> Task:
     task = Task(
         user_id=user.id,
         input_text=task_in.input_text,
+        recipient_email=task_in.recipient_email,
         status=TaskStatus.PENDING,
     )
     db.add(task)

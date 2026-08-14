@@ -23,5 +23,11 @@ class Settings(BaseSettings):
     # Gemini
     groq_api_key: str
 
+    # Resend
+    resend_api_key: str
+    # Gmail SMTP
+    gmail_address: str
+    gmail_app_password: str
+
 
 settings = Settings()

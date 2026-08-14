@@ -2,11 +2,21 @@ from app.agents.llm_client import call_gemini
 
 
 def run_email_agent(summary: str, original_request: str) -> str:
-    prompt = f"""Write a professional, well-formatted email based on the following summary. The email should be ready to send as-is, with an appropriate subject line, greeting, body, and sign-off (use a generic placeholder like "[Your Name]" for the sender).
+    prompt = f"""Write a short, clear, professional email based on the summary below. It should be easy to read quickly — simple sentences, no jargon, no filler phrases like "I hope this finds you well."
 
-Original request context: {original_request}
+Format exactly like this:
+Subject: [clear, specific subject line]
 
-Summary to base the email on:
+[Greeting]
+
+[2-3 short paragraphs covering the key points from the summary]
+
+[Sign-off]
+[Your Name]
+
+Context for the email: {original_request}
+
+Summary to base it on:
 {summary}"""
 
     return call_gemini(prompt)

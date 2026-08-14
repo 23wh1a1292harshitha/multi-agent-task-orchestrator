@@ -24,6 +24,7 @@ class Task(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
     input_text = Column(Text, nullable=False)
+    recipient_email = Column(String, nullable=True)
     status = Column(Enum(TaskStatus), default=TaskStatus.PENDING, nullable=False)
 
     plan = Column(JSON, nullable=True)

@@ -5,15 +5,15 @@ from typing import Optional, Any
 
 from app.db.models.task import TaskStatus
 
-
 class TaskCreate(BaseModel):
     input_text: str
-
+    recipient_email: Optional[str] = None
 
 class TaskOut(BaseModel):
     id: UUID
     status: TaskStatus
     input_text: str
+    recipient_email: Optional[str] = None
     plan: Optional[Any] = None
     steps_output: Optional[Any] = None
     final_result: Optional[str] = None
