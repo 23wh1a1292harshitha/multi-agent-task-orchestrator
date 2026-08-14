@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AgentFlow — Multi-Agent Task Orchestrator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-border: #23272f;
+    --ink: #e8eaed;
+    --ink-dim: #8b93a1;
+    --amber: #e8a33d;
+    --amber-dim: #6b5227;
+    --green: #4fd1a5;
+    --green-dim: #1f4a3c;
+    --red: #ef6d6d;
+    --red-dim: #4a2323;
+  }
+
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(232,163,61,0.06), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(79,209,165,0.05), transparent 40%);
+    color: var(--ink);
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+  }
+
+  header { margin-bottom: 40px; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+  }
+
+  h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.9rem;
+    font-weight: 700;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.01em;
+  }
+  h1 span { color: var(--amber); }
+
+  .subtitle {
+    color: var(--ink-dim);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    max-width: 46ch;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin-bottom: 8px;
+  }
+
+  input, textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.95rem;
+    transition: border-color 0.15s ease;
+  }
+  input::placeholder, textarea::placeholder { color: #4a505c; }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--amber);
+  }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-hint {
+    font-size: 0.78rem;
+    color: var(--ink-dim);
+    margin-top: 6px;
+  }
+
+  button {
+    width: 100%;
+    padding: 13px 14px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: transform 0.1s ease, background 0.15s ease;
+  }
+  button:active { transform: scale(0.99); }
+
+  .btn-primary {
+    background: var(--amber);
+    color: #1a1206;
+    margin-top: 18px;
+  }
+  .btn-primary:hover { background: #f0b256; }
+  .btn-primary:disabled {
+    background: #3a3a3a;
+    color: #777;
+    cursor: not-allowed;
+  }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 18px; }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--ink-dim);
+  }
+  .btn-secondary:hover { border-color: var(--ink-dim); color: var(--ink); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-dim);
+    border: 1px solid var(--panel-border);
+    margin-top: 24px;
+  }
+  .btn-ghost:hover { color: var(--ink); border-color: var(--ink-dim); }
+
+  .error {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--red);
+    margin-top: 10px;
+    min-height: 1em;
+  }
+
+  #authSection.logged-in { display: none; }
+  #appSection { display: none; }
+  #appSection.visible { display: block; }
+
+  /* Pipeline visualization — the signature element */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 0 22px 0;
+  }
+  .node {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .node-dot {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--panel-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ink-dim);
+    background: var(--bg);
+    transition: all 0.35s ease;
+  }
+  .node-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    transition: color 0.35s ease;
+  }
+  .node.active .node-dot {
+    border-color: var(--amber);
+    color: var(--amber);
+    box-shadow: 0 0 14px rgba(232,163,61,0.35);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+  .node.active .node-label { color: var(--amber); }
+  .node.done .node-dot {
+    border-color: var(--green);
+    background: var(--green-dim);
+    color: var(--green);
+  }
+  .node.done .node-label { color: var(--green); }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(232,163,61,0.25); }
+    50% { box-shadow: 0 0 18px rgba(232,163,61,0.5); }
+  }
+  .track {
+    flex: 1.4;
+    height: 2px;
+    background: var(--panel-border);
+    position: relative;
+    margin-top: -20px;
+    overflow: hidden;
+  }
+  .track-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--green);
+    transition: width 0.5s ease;
+  }
+
+  .status-line {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+  .status-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 20px;
+  }
+  .status-pending { background: var(--amber-dim); color: var(--amber); }
+  .status-running { background: var(--amber-dim); color: var(--amber); }
+  .status-completed { background: var(--green-dim); color: var(--green); }
+  .status-failed { background: var(--red-dim); color: var(--red); }
+
+  .step {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border-radius: 8px;
+    border-left: 2px solid var(--amber-dim);
+    animation: fadeIn 0.4s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .step h4 {
+    margin: 0 0 8px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .step p {
+    margin: 0;
+    white-space: pre-wrap;
+    font-size: 0.87rem;
+    line-height: 1.6;
+    color: #d3d6db;
+  }
+
+  .sent-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--green);
+    margin-top: 10px;
+  }
+
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">System online</div>
+    <h1>Agent<span>Flow</span></h1>
+    <div class="subtitle">Describe a task in plain language. Three agents run in sequence — research, then summary, then a ready-to-send email — each one building on the last.</div>
+  </header>
+
+  <div id="authSection" class="panel">
+    <div class="field">
+      <label>Email</label>
+      <input id="email" type="email" placeholder="you@example.com" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="password" type="password" placeholder="••••••••" />
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="register()">Create account</button>
+      <button class="btn-primary" style="margin-top:0" onclick="login()">Log in</button>
+    </div>
+    <div id="authError" class="error"></div>
+  </div>
+
+  <div id="appSection">
+    <div class="panel">
+      <div class="field">
+        <label>Send result to <span style="text-transform:none; color:#5b606a;">(optional)</span></label>
+        <input id="recipientEmail" type="email" placeholder="someone@example.com" />
+        <div class="field-hint">If set, the finished email is sent here automatically.</div>
+      </div>
+      <div class="field">
+        <label>Task</label>
+        <textarea id="taskInput" rows="3" placeholder="Research Cloud Computing, summarize it, and write a professional email."></textarea>
+      </div>
+      <button class="btn-primary" id="submitBtn" onclick="submitTask()">Run agents</button>
+    </div>
+
+    <div id="resultCard" class="panel hidden">
+      <div class="pipeline" id="pipeline">
+        <div class="node" data-node="research"><div class="node-dot">1</div><div class="node-label">Research</div></div>
+        <div class="track"><div class="track-fill" id="track1"></div></div>
+        <div class="node" data-node="summary"><div class="node-dot">2</div><div class="node-label">Summary</div></div>
+        <div class="track"><div class="track-fill" id="track2"></div></div>
+        <div class="node" data-node="email"><div class="node-dot">3</div><div class="node-label">Email</div></div>
+      </div>
+
+      <div class="status-line">
+        <span id="statusBadge" class="status-badge"></span>
+      </div>
+      <div id="steps"></div>
+    </div>
+
+    <button class="btn-ghost" onclick="logout()">Log out</button>
+  </div>
+</div>
+
+<script>
+const API_BASE = "";
+let token = null;
+let pollInterval = null;
+
+function showApp() {
+  document.getElementById("authSection").classList.add("logged-in");
+  document.getElementById("appSection").classList.add("visible");
+}
+
+async function register() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const errEl = document.getElementById("authError");
+  if (res.ok) {
+    errEl.style.color = "var(--green)";
+    errEl.textContent = "Account created — log in above.";
+  } else {
+    errEl.style.color = "var(--red)";
+    const data = await res.json();
+    errEl.textContent = data.detail || "Registration failed";
+  }
+}
+
+async function login() {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  const form = new URLSearchParams();
+  form.append("username", email);
+  form.append("password", password);
+
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form
+  });
+  const errEl = document.getElementById("authError");
+  if (res.ok) {
+    const data = await res.json();
+    token = data.access_token;
+    errEl.textContent = "";
+    showApp();
+  } else {
+    errEl.style.color = "var(--red)";
+    errEl.textContent = "Login failed — check your credentials.";
+  }
+}
+
+function logout() {
+  token = null;
+  clearInterval(pollInterval);
+  document.getElementById("authSection").classList.remove("logged-in");
+  document.getElementById("appSection").classList.remove("visible");
+  document.getElementById("resultCard").classList.add("hidden");
+}
+
+let currentTaskId = null;
+
+async function submitTask() {
+  const input_text = document.getElementById("taskInput").value.trim();
+  if (!input_text) return;
+
+  const btn = document.getElementById("submitBtn");
+  if (btn.disabled) return; // guard against double-click
+  btn.disabled = true;
+  btn.textContent = "Starting…";
+
+  clearInterval(pollInterval);
+
+  const res = await fetch(`${API_BASE}/tasks`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      input_text,
+      recipient_email: document.getElementById("recipientEmail").value || null
+    })
+  });
+
+  btn.disabled = false;
+  btn.textContent = "Run agents";
+
+  if (!res.ok) {
+    alert("Failed to submit task");
+    return;
+  }
+
+  const task = await res.json();
+  currentTaskId = task.id;
+  notFoundCount = 0;
+
+  document.getElementById("resultCard").classList.remove("hidden");
+  resetPipeline();
+  renderTask(task);
+
+  pollInterval = setInterval(() => pollTask(task.id), 1500);
+}
+
+let notFoundCount = 0;
+
+async function pollTask(taskId) {
+  if (taskId !== currentTaskId) return;
+
+  const res = await fetch(`${API_BASE}/tasks/${taskId}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+
+  if (taskId !== currentTaskId) return;
+
+  if (!res.ok) {
+    notFoundCount++;
+    if (notFoundCount >= 5) {
+      clearInterval(pollInterval);
+      document.getElementById("statusBadge").textContent = "error";
+      document.getElementById("statusBadge").className = "status-badge status-failed";
+    }
+    return;
+  }
+
+  notFoundCount = 0;
+  const task = await res.json();
+  renderTask(task);
+
+  if (task.status === "completed" || task.status === "failed") {
+    clearInterval(pollInterval);
+  }
+}
+function resetPipeline() {
+  document.querySelectorAll(".node").forEach(n => n.classList.remove("active", "done"));
+  document.getElementById("track1").style.width = "0%";
+  document.getElementById("track2").style.width = "0%";
+}
+
+function updatePipeline(task) {
+  const order = ["research", "summary", "email"];
+  const outputs = task.steps_output || {};
+  const nodes = document.querySelectorAll(".node");
+
+  order.forEach((key, i) => {
+    const node = document.querySelector(`.node[data-node="${key}"]`);
+    node.classList.remove("active", "done");
+    if (outputs[key]) {
+      node.classList.add("done");
+      if (i === 0) document.getElementById("track1").style.width = "100%";
+      if (i === 1) document.getElementById("track2").style.width = "100%";
+    } else if (task.status === "running" && i === Object.keys(outputs).length) {
+      node.classList.add("active");
+    }
+  });
+
+  if (task.status === "completed") {
+    order.forEach(k => document.querySelector(`.node[data-node="${k}"]`).classList.add("done"));
+    document.getElementById("track1").style.width = "100%";
+    document.getElementById("track2").style.width = "100%";
+  }
+}
+
+function renderTask(task) {
+  const badge = document.getElementById("statusBadge");
+  badge.textContent = task.status;
+  badge.className = `status-badge status-${task.status}`;
+
+  updatePipeline(task);
+
+  const stepsEl = document.getElementById("steps");
+  stepsEl.innerHTML = "";
+
+  if (task.status === "failed" && task.error_message) {
+    stepsEl.innerHTML = `<div class="step"><h4>Error</h4><p>${escapeHtml(task.error_message)}</p></div>`;
+    return;
+  }
+
+  if (task.steps_output) {
+    const labels = { research: "Research", summary: "Summary", email: "Email" };
+    for (const key of ["research", "summary", "email"]) {
+      if (task.steps_output[key]) {
+        stepsEl.innerHTML += `
+          <div class="step">
+            <h4>${labels[key]}</h4>
+            <p>${escapeHtml(task.steps_output[key])}</p>
+          </div>`;
+      }
+    }
+    if (task.steps_output.email_sent === true) {
+      stepsEl.innerHTML += `<div class="sent-tag">✓ Sent to ${escapeHtml(task.recipient_email || "recipient")}</div>`;
+    }
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
